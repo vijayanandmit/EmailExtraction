@@ -36,6 +36,32 @@ def perform_clustering(X, num_clusters=5):
     clusters = km.labels_
     return clusters, km
 
+def get_cluster_names(km, vectorizer, n_terms=3):
+    """
+    Generate descriptive names for each cluster by extracting the top TF-IDF terms.
+    
+    Parameters:
+    - km: Trained KMeans clustering model.
+    - vectorizer: The fitted TfidfVectorizer.
+    - n_terms: Number of top terms to include in the cluster name.
+    
+    Returns:
+    - A dictionary mapping each cluster ID to a descriptive name.
+    """
+    # Use get_feature_names_out() if available, otherwise fallback to get_feature_names()
+    try:
+        terms = vectorizer.get_feature_names_out()
+    except AttributeError:
+        terms = vectorizer.get_feature_names()
+
+    cluster_names = {}
+    for i, centroid in enumerate(km.cluster_centers_):
+        # Get indices of the top n_terms for the cluster centroid
+        top_indices = centroid.argsort()[-n_terms:][::-1]
+        top_terms = [terms[ind] for ind in top_indices]
+        cluster_names[i] = " ".join(top_terms)
+    return cluster_names
+
 def visualize_clusters(X, clusters):
     """
     Use PCA to reduce the feature space to 2 dimensions and visualize the clusters.
@@ -67,8 +93,16 @@ def main():
     num_clusters = 5
     clusters, km = perform_clustering(X, num_clusters)
     
-    # Add cluster labels to the DataFrame
+    # Get descriptive names for each cluster
+    cluster_name_mapping = get_cluster_names(km, vectorizer, n_terms=3)
+    print("Cluster Name Mapping:")
+    for cluster_id, name in cluster_name_mapping.items():
+        print(f"Cluster {cluster_id}: {name}")
+    
+    # Add cluster labels and cluster names to the DataFrame
     df['cluster'] = clusters
+    df['cluster_name'] = df['cluster'].map(cluster_name_mapping)
+    
     print("Cluster distribution:")
     print(df['cluster'].value_counts())
     
